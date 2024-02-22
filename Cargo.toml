@@ -10,8 +10,8 @@ build = "build.rs"
 links = "emd"
 
 [build-dependencies]
-cc = "1.0.37"
+cc = "^1.0.37"
 
 [dependencies]
-libc = "0.2"
-ndarray = "0.12.1"
+libc = "^0.2"
+ndarray = "^0.15.6"
