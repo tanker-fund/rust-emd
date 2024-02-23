@@ -119,16 +119,16 @@ pub fn distance_multi(X: &ArrayView2<f64>, Y: &ArrayView2<f64>) -> f64 {
 pub fn distance_generic<D>(X: &ArrayView2<f64>, Y: &ArrayView2<f64>,
                            distance: D) -> f64
         where D: Fn(&ArrayView1<f64>, &ArrayView1<f64>) -> f64 {
-    assert_eq!(X.cols(), Y.cols());
+    assert_eq!(X.ncols(), Y.ncols());
 
     // Uniform weights
-    let weight_x = vec![1./(X.rows() as c_double); X.rows()];
-    let weight_y = vec![1./(Y.rows() as c_double); Y.rows()];
+    let weight_x = vec![1./(X.nrows() as c_double); X.nrows()];
+    let weight_y = vec![1./(Y.nrows() as c_double); Y.nrows()];
 
     // Pairwise distance matrix
-    let mut cost = Vec::with_capacity(X.rows());
+    let mut cost = Vec::with_capacity(X.nrows());
     for x in X.outer_iter() {
-        let mut cost_i = Vec::with_capacity(Y.rows());
+        let mut cost_i = Vec::with_capacity(Y.nrows());
         for y in Y.outer_iter() {
             cost_i.push(distance(&x, &y) as c_double);
         }
@@ -136,8 +136,8 @@ pub fn distance_generic<D>(X: &ArrayView2<f64>, Y: &ArrayView2<f64>,
     }
 
     // Call emd()
-    let d = unsafe { emd(X.rows(), weight_x.as_ptr(),
-                         Y.rows(), weight_y.as_ptr(),
+    let d = unsafe { emd(X.nrows(), weight_x.as_ptr(),
+                         Y.nrows(), weight_y.as_ptr(),
                          cost.as_ptr(), null()) };
     d as f64
 }
