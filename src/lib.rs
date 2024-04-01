@@ -57,6 +57,7 @@ extern crate ndarray;
 use ndarray::*;
 use std::os::raw::c_double;
 use std::ptr::null;
+use std::mem::drop;
 
 
 #[link(name = "emd")]
@@ -69,6 +70,15 @@ extern "C" {
 
 /// Returns the Euclidean distance between two vectors of f64 values.
 pub fn euclidean_distance(v1: &ArrayView1<f64>, v2: &ArrayView1<f64>) -> f64 {
+    v1.iter()
+      .zip(v2.iter())
+      .map(|(x,y)| (x - y).powi(2))
+      .sum::<f64>()
+      .sqrt()
+}
+
+/// Returns the Euclidean distance between two raw vectors of f64 values.
+pub fn vectors_euclidean_distance(v1: &Vec<f64>, v2: &Vec<f64>) -> f64 {
     v1.iter()
       .zip(v2.iter())
       .map(|(x,y)| (x - y).powi(2))
@@ -135,11 +145,39 @@ pub fn distance_generic<D>(X: &ArrayView2<f64>, Y: &ArrayView2<f64>,
         cost.push(Box::into_raw(cost_i.into_boxed_slice()) as *const c_double);
     }
 
+    println!("Distance!");
+    println!("{:?}, {:?}", X, Y);
+    println!("{:?}, {:?}, {:?}, {:?}, {:?}", X.nrows(), weight_x, Y.nrows(), weight_y, cost);
+
     // Call emd()
     let d = unsafe { emd(X.nrows(), weight_x.as_ptr(),
                          Y.nrows(), weight_y.as_ptr(),
                          cost.as_ptr(), null()) };
     d as f64
+}
+
+pub fn vectors_distance(x: &Vec<f64>, y: &Vec<f64>) -> f64 {
+    let weight_x = vec![1./(x.len() as c_double); x.len()];
+    let weight_y = vec![1./(y.len() as c_double); y.len()];
+
+    let mut cost = Vec::with_capacity(x.len());
+    for i in x {
+        let mut cost_row = Vec::with_capacity(y.len());
+        for j in y {
+            cost_row.push(vectors_euclidean_distance(&vec![*i], &vec![*j]) as c_double);
+        }
+        cost.push(Box::into_raw(cost_row.into_boxed_slice()) as *const c_double)
+    }
+
+    let distance = unsafe {
+        emd(x.len(), weight_x.as_ptr(), y.len(), weight_y.as_ptr(), cost.as_ptr(), null())
+    };
+
+    drop(weight_x);
+    drop(weight_y);
+    drop(cost);
+
+    distance
 }
 
 
@@ -160,5 +198,9 @@ mod tests {
         let x = array![4., 3.];
         let y = array![3., 5., 3., 2.];
         assert_eq!(distance(&x.view(), &y.view()), 0.75);
+
+        let x = vec![4., 3.];
+        let y = vec![3., 5.];
+        assert_eq!(vectors_distance(&x, &y), 0.5);
     }
 }
